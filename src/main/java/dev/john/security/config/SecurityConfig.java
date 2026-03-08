@@ -30,11 +30,14 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    @Value("${frontend.url}")
+    String frontendUrl;
     @Value("${spring.security.oauth2.resourceserver.jwt.public-key-location}")
     RSAPublicKey publicKey;
     @Value("${app.security.jwt.private-key-location}")
@@ -71,7 +74,14 @@ public class SecurityConfig {
                                 }
                             }
                             return null;
-                        }));
+                        }))
+                .cors(cors -> cors.configurationSource(request -> {
+                    var config = new org.springframework.web.cors.CorsConfiguration();
+                    config.setAllowedOrigins(List.of(frontendUrl));
+                    config.setAllowCredentials(true);
+                    config.setAllowedHeaders(List.of("*"));
+                    return config;
+                }));
         return http.build();
     }
 
