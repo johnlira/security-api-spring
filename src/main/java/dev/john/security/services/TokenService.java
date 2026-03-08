@@ -1,9 +1,10 @@
 package dev.john.security.services;
 
+import dev.john.security.entity.Role;
+import dev.john.security.exception.UserNotFoundException;
 import dev.john.security.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
@@ -19,15 +20,15 @@ public class TokenService {
     private final JwtEncoder encoder;
     private final UserRepository userRepository;
 
-    public String generateToken(Authentication authentication){
+    public String generateToken(Authentication authentication) {
         Instant now = Instant.now();
         long expiry = 3600L;
 
         var user = userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        String scope = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
+        String scope = user.getRoles().stream()
+                .map(Role::getName)
                 .collect(Collectors.joining(" "));
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -35,12 +36,10 @@ public class TokenService {
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(expiry))
                 .subject(user.getId().toString())
+                .claim("email", user.getEmail())
                 .claim("scope", scope)
                 .build();
 
-        var token  = encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-
-        return token;
-
+        return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }
 }
